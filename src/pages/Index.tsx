@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { GuestSidebar } from '@/components/GuestSidebar';
 import { TableView } from '@/components/TableView';
 import { useSeatingChart } from '@/hooks/useSeatingChart';
-import { Heart, Download, FileSpreadsheet } from 'lucide-react';
+import { Heart, Download, FileSpreadsheet, Crown } from 'lucide-react';
 
 const Index = () => {
   const {
@@ -23,6 +24,10 @@ const Index = () => {
     exportCSV,
     importCSV
   } = useSeatingChart();
+
+  // Separate head table from regular tables
+  const headTable = tables.find(table => table.isHeadTable);
+  const regularTables = tables.filter(table => !table.isHeadTable);
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -84,18 +89,40 @@ const Index = () => {
             />
           </div>
 
-          {/* Tables Grid */}
+          {/* Tables Section */}
           <div className="flex-1 overflow-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-4">
-              {tables.map((table) => (
-                <TableView
-                  key={table.id}
-                  table={table}
-                  onUpdateTable={updateTable}
-                  onRemoveGuestFromTable={removeGuestFromTable}
-                  onUpdateGuest={updateGuest}
-                />
-              ))}
+            {/* Head Table Section */}
+            {headTable && (
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <Crown className="w-5 h-5 text-rose-gold" />
+                  <h2 className="text-xl font-semibold text-primary">Head Table</h2>
+                </div>
+                <div className="flex justify-center">
+                  <TableView
+                    table={headTable}
+                    onUpdateTable={updateTable}
+                    onRemoveGuestFromTable={removeGuestFromTable}
+                    onUpdateGuest={updateGuest}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Regular Tables Section */}
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold text-primary mb-4">Guest Tables</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-4">
+                {regularTables.map((table) => (
+                  <TableView
+                    key={table.id}
+                    table={table}
+                    onUpdateTable={updateTable}
+                    onRemoveGuestFromTable={removeGuestFromTable}
+                    onUpdateGuest={updateGuest}
+                  />
+                ))}
+              </div>
             </div>
             
             {/* Empty State */}

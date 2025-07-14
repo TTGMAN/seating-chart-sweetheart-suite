@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { Guest, Table, SeatingChartData } from '@/types/wedding';
 
@@ -276,6 +275,58 @@ export function useSeatingChart() {
     reader.readAsText(file);
   }, [tables, findTableByName]);
 
+  // Save current seating chart to JSON file
+  const saveSeatingChart = useCallback(() => {
+    const seatingData = {
+      tables,
+      guests,
+      metadata: {
+        savedAt: new Date().toISOString(),
+        totalGuests: guests.length,
+        assignedGuests: guests.filter(g => g.tableId).length
+      }
+    };
+
+    const dataStr = JSON.stringify(seatingData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `wedding-seating-plan-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [tables, guests]);
+
+  // Load seating chart from JSON file
+  const loadSeatingChart = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const seatingData = JSON.parse(text);
+        
+        if (seatingData.tables && seatingData.guests) {
+          console.log('Loading seating chart:', seatingData.metadata);
+          setTables(seatingData.tables);
+          setGuests(seatingData.guests);
+        } else {
+          console.error('Invalid seating chart file format');
+        }
+      } catch (error) {
+        console.error('Error loading seating chart:', error);
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
+  // Clear all data and reset to default
+  const resetSeatingChart = useCallback(() => {
+    setTables(generateDefaultTables());
+    setGuests([]);
+  }, []);
+
   return {
     tables,
     guests,
@@ -290,6 +341,9 @@ export function useSeatingChart() {
     updateTable,
     removeGuestFromTable,
     exportCSV,
-    importCSV
+    importCSV,
+    saveSeatingChart,
+    loadSeatingChart,
+    resetSeatingChart
   };
 }

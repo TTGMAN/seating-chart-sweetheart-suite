@@ -20,6 +20,9 @@ interface GuestSidebarProps {
   onDeleteGuest: (id: string) => void;
   onExportCSV: () => void;
   onImportCSV: (file: File) => void;
+  onSaveSeatingChart: () => void;
+  onLoadSeatingChart: (file: File) => void;
+  onResetSeatingChart: () => void;
   totalGuests: number;
   assignedGuests: number;
 }
@@ -33,6 +36,9 @@ export function GuestSidebar({
   onDeleteGuest,
   onExportCSV,
   onImportCSV,
+  onSaveSeatingChart,
+  onLoadSeatingChart,
+  onResetSeatingChart,
   totalGuests,
   assignedGuests
 }: GuestSidebarProps) {
@@ -75,6 +81,14 @@ export function GuestSidebar({
     event.target.value = '';
   };
 
+  const handlePlanUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === 'application/json') {
+      onLoadSeatingChart(file);
+    }
+    event.target.value = '';
+  };
+
   return (
     <Card className="h-full flex flex-col bg-gradient-card border-border/50 shadow-soft">
       <CardHeader className="pb-4">
@@ -93,6 +107,37 @@ export function GuestSidebar({
       </CardHeader>
       
       <CardContent className="flex-1 flex flex-col space-y-4">
+        {/* Save/Load Plan Section */}
+        <div className="space-y-2 p-3 bg-muted/30 rounded-lg">
+          <Label className="text-sm font-medium">Seating Plan</Label>
+          <div className="flex gap-2">
+            <Button onClick={onSaveSeatingChart} variant="secondary" className="flex-1 text-xs">
+              <Download className="w-3 h-3 mr-1" />
+              Save Plan
+            </Button>
+            <Label htmlFor="plan-upload" className="flex-1">
+              <Button variant="secondary" className="w-full text-xs" asChild>
+                <span>
+                  <Upload className="w-3 h-3 mr-1" />
+                  Load Plan
+                </span>
+              </Button>
+            </Label>
+            <input
+              id="plan-upload"
+              type="file"
+              accept=".json"
+              onChange={handlePlanUpload}
+              className="hidden"
+            />
+          </div>
+          <Button onClick={onResetSeatingChart} variant="outline" className="w-full text-xs">
+            Reset Plan
+          </Button>
+        </div>
+
+        <Separator />
+
         {/* Add Single Guest */}
         <div className="space-y-2">
           <Label>Add Guest</Label>

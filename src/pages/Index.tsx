@@ -21,7 +21,10 @@ const Index = () => {
     updateTable,
     removeGuestFromTable,
     exportCSV,
-    importCSV
+    importCSV,
+    saveSeatingChart,
+    loadSeatingChart,
+    resetSeatingChart
   } = useSeatingChart();
 
   // Separate head table from regular tables
@@ -83,6 +86,9 @@ const Index = () => {
               onDeleteGuest={deleteGuest}
               onExportCSV={exportCSV}
               onImportCSV={importCSV}
+              onSaveSeatingChart={saveSeatingChart}
+              onLoadSeatingChart={loadSeatingChart}
+              onResetSeatingChart={resetSeatingChart}
               totalGuests={totalGuests}
               assignedGuests={assignedGuestsCount}
             />

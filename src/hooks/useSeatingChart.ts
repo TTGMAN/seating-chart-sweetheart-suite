@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { Guest, Table, SeatingChartData } from '@/types/wedding';
 
@@ -143,36 +144,137 @@ export function useSeatingChart() {
     URL.revokeObjectURL(url);
   }, [guests, tables]);
 
-  // Import CSV
+  // Helper function to find table by name
+  const findTableByName = useCallback((tableName: string): string | undefined => {
+    if (!tableName || tableName.toLowerCase() === 'unassigned') return undefined;
+    
+    // Try exact match first
+    let table = tables.find(t => t.name.toLowerCase() === tableName.toLowerCase());
+    
+    // If not found, try partial match
+    if (!table) {
+      table = tables.find(t => 
+        t.name.toLowerCase().includes(tableName.toLowerCase()) ||
+        tableName.toLowerCase().includes(t.name.toLowerCase())
+      );
+    }
+    
+    return table?.id;
+  }, [tables]);
+
+  // Import CSV with enhanced parsing
   const importCSV = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+      const lines = text.split('\n').filter(line => line.trim());
       
-      const newGuests: Guest[] = lines.slice(1)
-        .filter(line => line.trim())
-        .map((line, index) => {
-          const values = line.split(',').map(v => v.replace(/"/g, '').trim());
-          const name = values[headers.indexOf('Name')] || values[0];
-          const side = values[headers.indexOf('Side')] || 'both';
-          
-          return {
-            id: `imported-${Date.now()}-${index}`,
-            name,
-            side: ['bride', 'groom', 'both'].includes(side) ? side as any : 'both',
-            rsvpStatus: 'pending' as const,
-            mealChoice: values[headers.indexOf('Meal Choice')] || undefined,
-            notes: values[headers.indexOf('Notes')] || undefined
-          };
-        })
-        .filter(guest => guest.name);
+      if (lines.length === 0) return;
       
+      const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
+      console.log('CSV Headers found:', headers);
+      
+      const newGuests: Guest[] = [];
+      const guestsToAssign: { guest: Guest; tableName: string }[] = [];
+      
+      lines.slice(1).forEach((line, index) => {
+        if (!line.trim()) return;
+        
+        const values = line.split(',').map(v => v.replace(/"/g, '').trim());
+        
+        // Find column indices
+        const nameIndex = headers.findIndex(h => 
+          h.includes('name') || h === 'guest'
+        );
+        const sideIndex = headers.findIndex(h => 
+          h.includes('side') || h.includes('party')
+        );
+        const tableIndex = headers.findIndex(h => 
+          h.includes('table') || h.includes('seating')
+        );
+        const rsvpIndex = headers.findIndex(h => 
+          h.includes('rsvp') || h.includes('accepted') || h.includes('attending') || h.includes('status')
+        );
+        const mealIndex = headers.findIndex(h => 
+          h.includes('meal') || h.includes('food') || h.includes('dietary')
+        );
+        const notesIndex = headers.findIndex(h => 
+          h.includes('notes') || h.includes('comment')
+        );
+        
+        const name = values[nameIndex] || values[0] || '';
+        if (!name) return;
+        
+        const sideValue = values[sideIndex] || 'both';
+        const side = ['bride', 'groom', 'both'].includes(sideValue.toLowerCase()) 
+          ? sideValue.toLowerCase() as 'bride' | 'groom' | 'both'
+          : 'both';
+        
+        // Parse RSVP status
+        const rsvpValue = values[rsvpIndex] || 'pending';
+        let rsvpStatus: 'pending' | 'attending' | 'declined' = 'pending';
+        
+        const rsvpLower = rsvpValue.toLowerCase();
+        if (rsvpLower.includes('yes') || rsvpLower.includes('accepted') || rsvpLower.includes('attending') || rsvpLower === 'true') {
+          rsvpStatus = 'attending';
+        } else if (rsvpLower.includes('no') || rsvpLower.includes('declined') || rsvpLower === 'false') {
+          rsvpStatus = 'declined';
+        }
+        
+        const newGuest: Guest = {
+          id: `imported-${Date.now()}-${index}`,
+          name,
+          side,
+          rsvpStatus,
+          mealChoice: values[mealIndex] || undefined,
+          notes: values[notesIndex] || undefined
+        };
+        
+        newGuests.push(newGuest);
+        
+        // Handle table assignment
+        const tableName = values[tableIndex];
+        if (tableName && tableName.toLowerCase() !== 'unassigned') {
+          guestsToAssign.push({ guest: newGuest, tableName });
+        }
+      });
+      
+      console.log(`Importing ${newGuests.length} guests`);
+      
+      // Add guests first
       setGuests(prev => [...prev, ...newGuests]);
+      
+      // Then assign tables
+      setTimeout(() => {
+        setTables(prevTables => {
+          const updatedTables = [...prevTables];
+          
+          guestsToAssign.forEach(({ guest, tableName }) => {
+            const tableId = findTableByName(tableName);
+            if (tableId) {
+              const tableIndex = updatedTables.findIndex(t => t.id === tableId);
+              if (tableIndex !== -1 && updatedTables[tableIndex].guests.length < updatedTables[tableIndex].capacity) {
+                updatedTables[tableIndex] = {
+                  ...updatedTables[tableIndex],
+                  guests: [...updatedTables[tableIndex].guests, { ...guest, tableId }]
+                };
+                
+                // Update guest with tableId
+                setGuests(prevGuests => 
+                  prevGuests.map(g => 
+                    g.id === guest.id ? { ...g, tableId } : g
+                  )
+                );
+              }
+            }
+          });
+          
+          return updatedTables;
+        });
+      }, 100);
     };
     reader.readAsText(file);
-  }, []);
+  }, [tables, findTableByName]);
 
   return {
     tables,
